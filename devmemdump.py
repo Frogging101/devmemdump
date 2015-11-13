@@ -46,7 +46,7 @@ for line in iomem:
 commands = []
 ddtmpl = "dd if=/dev/mem bs=512 skip={} count={} iflag=skip_bytes,count_bytes"
 if args.outfile:
-    ddtmpl += ' > '+args.outfile
+    ddtmpl += ' >> '+args.outfile
 
 for block in blocks:
     command = ddtmpl.format(max(0,block.start-1),block.end-block.start)
