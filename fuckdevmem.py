@@ -12,6 +12,9 @@ include = ['System RAM',
 argparser = argparse.ArgumentParser()
 argparser.add_argument("-b","--buffers", help="Include buffers", action="store_true")
 argparser.add_argument("-f","--file", help="Dump to file", dest='outfile')
+argparser.add_argument("bytes", type=str, nargs='?',
+                       help="How many bytes to fuck up. Can be a range as in \"4000-8000\" (the default)",
+                       default="null")
 
 args = argparser.parse_args()
 
@@ -30,6 +33,21 @@ class IOMemBlock:
 iomemf = open('/proc/iomem','r')
 iomem = iomemf.readlines()
 iomemf.close()
+
+bytesLower = 4000
+bytesUpper = 8000
+
+rangePat = r"(\d+)-(\d+)"
+m = re.match(rangePat, args.bytes)
+if m:
+    bytesLower = int(m.group(1))
+    bytesUpper = int(m.group(2))
+else:
+    try:
+        bytesLower = int(args.bytes)
+        bytesUpper = bytesLower
+    except ValueError:
+        pass
 
 blocks = []
 for line in iomem:
@@ -53,7 +71,7 @@ chosenblock = random.randint(0,len(blocks)-1)
 chosenstart = max(0,blocks[chosenblock].start)
 chosenend = blocks[chosenblock].end
 
-command = ddtmpl.format(random.randint(chosenstart,chosenend),random.randint(16000000,256000000))
+command = ddtmpl.format(random.randint(chosenstart,chosenend),random.randint(bytesLower,bytesUpper))
 print command
 
 """for block in blocks:
