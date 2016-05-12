@@ -49,7 +49,7 @@ ddtmpl = "dd if=/dev/urandom of=/dev/mem bs=512 seek={} count={} oflag=seek_byte
 #if args.outfile:
 #    ddtmpl += ' >> '+args.outfile
 
-chosenblock = random.randint(0,len(blocks))
+chosenblock = random.randint(0,len(blocks)-1)
 chosenstart = max(0,blocks[chosenblock].start)
 chosenend = blocks[chosenblock].end
 
