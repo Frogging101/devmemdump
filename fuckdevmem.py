@@ -49,12 +49,12 @@ else:
     except ValueError:
         pass
 
+blkPat = "^\s*([0-9a-f]+)-([0-9a-f]+) : (.*)$"
+blkProg = re.compile(blkPat,re.M)
 blocks = []
 for line in iomem:
     blk = IOMemBlock()
-    pattern = "^\s*([0-9a-f]+)-([0-9a-f]+) : (.*)$"
-    prog = re.compile(pattern,re.M)
-    m = prog.match(line)
+    m = blkProg.match(line)
     blk.name = m.group(3)
     if blk.name not in include:
         continue
@@ -64,8 +64,6 @@ for line in iomem:
 
 commands = []
 ddtmpl = "dd if=/dev/urandom of=/dev/mem bs=512 seek={} count={} oflag=seek_bytes iflag=count_bytes"
-#if args.outfile:
-#    ddtmpl += ' >> '+args.outfile
 
 chosenblock = random.randint(0,len(blocks)-1)
 chosenstart = max(0,blocks[chosenblock].start)
@@ -73,16 +71,3 @@ chosenend = blocks[chosenblock].end
 
 command = ddtmpl.format(random.randint(chosenstart,chosenend),random.randint(bytesLower,bytesUpper))
 print command
-
-"""for block in blocks:
-    command = ddtmpl.format(max(0,block.start-1),block.end-block.start)
-    commands.append(command+'\n')
-
-if os.path.isfile("dddevmem.sh"):
-    print "dddevmem.sh already exists. Exiting"
-    exit(1)
-
-f = open("dddevmem.sh",'w')
-f.writelines(commands)
-f.close()
-"""
