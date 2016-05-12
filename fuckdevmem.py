@@ -1,16 +1,15 @@
+from __future__ import print_function
+import sys
 import re
 import argparse
 import os.path
 import random
 
 include = ['System RAM',
-        'System ROM',
-        'Kernel code',
-        'Kernel data',
-        'Kernel bss']
-
+           'System ROM']
 argparser = argparse.ArgumentParser()
 argparser.add_argument("-b","--buffers", help="Include buffers", action="store_true")
+argparser.add_argument("-k","--kernel-stuff", help="Include kernel stuff", action="store_true")
 argparser.add_argument("-f","--file", help="Dump to file", dest='outfile')
 argparser.add_argument("bytes", type=str, nargs='?',
                        help="How many bytes to fuck up. Can be a range as in \"4000-8000\" (the default)",
@@ -20,6 +19,10 @@ args = argparser.parse_args()
 
 if args.buffers:
     include.append("RAM buffer")
+if args.kernel_stuff:
+    include.append("Kernel code")
+    include.append("Kernel data")
+    include.append("Kernel bss")
 
 class IOMemBlock:
     def __init__(self):
@@ -69,5 +72,8 @@ chosenblock = random.randint(0,len(blocks)-1)
 chosenstart = max(0,blocks[chosenblock].start)
 chosenend = blocks[chosenblock].end
 
+print("Block: "+blocks[chosenblock].name, file=sys.stderr)
+
 command = ddtmpl.format(random.randint(chosenstart,chosenend),random.randint(bytesLower,bytesUpper))
-print command
+
+print(command)
