@@ -1,5 +1,6 @@
 from __future__ import print_function
 import sys
+import os
 import re
 import argparse
 import os.path
@@ -72,8 +73,53 @@ chosenblock = random.randint(0,len(blocks)-1)
 chosenstart = max(0,blocks[chosenblock].start)
 chosenend = blocks[chosenblock].end
 
-print("Block: "+blocks[chosenblock].name, file=sys.stderr)
+chosenOffset = random.randint(chosenstart,chosenend)
+chosenCount = random.randint(bytesLower,bytesUpper)
 
-command = ddtmpl.format(random.randint(chosenstart,chosenend),random.randint(bytesLower,bytesUpper))
+class Process:
+    def __init__(self, pid):
+        self.pid = pid
+        self.name = None
+        self.maps = []
+
+processes = []
+pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+
+mapsPat = r"([A-Fa-f0-9]+)-([A-Fa-f0-9]+)\s+[^\s]+\s+[^\s]+\s+[^\s]+\s+[^\s]+\s*([^\s]+)?"
+mapsProg = re.compile(mapsPat)
+
+for pid in pids:
+    try:
+        newProcess = Process(pid)
+        with open(os.path.join('/proc', pid, 'comm'), 'r') as commFile:
+            newProcess.name = commFile.readline().rstrip()
+
+        with open(os.path.join('/proc', pid, 'maps'), 'r') as mapsFile:
+            lines = mapsFile.readlines()
+            for line in lines:
+                m = mapsProg.match(line)
+                mapName = ''
+                if m.group(3):
+                    mapName = m.group(3)
+                mapStart = m.group(1)
+                mapEnd = m.group(2)
+                mapTuple = (int(mapStart,16), int(mapEnd, 16), mapName)
+                newProcess.maps.append(mapTuple)
+        processes.append(newProcess)
+    except IOError:
+        continue
+
+hits = []
+for proc in processes:
+    for map_ in proc.maps:
+        if chosenOffset <= map_[1] and\
+           map_[0] <= chosenOffset+chosenCount:
+               hits.append((proc, map_))
+print("Block: "+blocks[chosenblock].name+" ("+hex(chosenOffset)+'-'+hex(chosenOffset+chosenCount)+')', file=sys.stderr)
+print("Hitting:", file=sys.stderr)
+for hit in hits:
+    print(hit[0].name+'['+hit[0].pid+']: '+hit[1][2]+" ("+hex(hit[1][0])+'-'+hex(hit[1][1])+')', file=sys.stderr)
+
+command = ddtmpl.format(chosenOffset,chosenCount)
 
 print(command)
