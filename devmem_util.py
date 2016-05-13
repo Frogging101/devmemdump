@@ -39,7 +39,7 @@ def getBlocks(include):
 
 def getProcs():
     processes = []
-    pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+    pids = [int(pid) for pid in os.listdir('/proc') if pid.isdigit()]
 
     mapsPat = r"([A-Fa-f0-9]+)-([A-Fa-f0-9]+)\s+[^\s]+\s+[^\s]+\s+[^\s]+\s+[^\s]+\s*([^\s]+)?"
     mapsProg = re.compile(mapsPat)
@@ -47,10 +47,10 @@ def getProcs():
     for pid in pids:
         try:
             newProcess = Process(pid)
-            with open(os.path.join('/proc', pid, 'comm'), 'r') as commFile:
+            with open(os.path.join('/proc', str(pid), 'comm'), 'r') as commFile:
                 newProcess.name = commFile.readline().rstrip()
 
-            with open(os.path.join('/proc', pid, 'maps'), 'r') as mapsFile:
+            with open(os.path.join('/proc', str(pid), 'maps'), 'r') as mapsFile:
                 lines = mapsFile.readlines()
                 for line in lines:
                     m = mapsProg.match(line)

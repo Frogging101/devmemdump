@@ -11,11 +11,15 @@ include = ['System RAM',
            'System ROM']
 argparser = argparse.ArgumentParser()
 argparser.add_argument("-b","--buffers", help="Include buffers", action="store_true")
-argparser.add_argument("-k","--kernel-stuff", help="Include kernel stuff", action="store_true")
+argparser.add_argument("-K","--kernel-stuff", help="Include kernel stuff", action="store_true")
 argparser.add_argument("-f","--file", help="Dump to file", dest='outfile')
 argparser.add_argument("bytes", type=str, nargs='?',
                        help="How many bytes to fuck up. Can be a range as in \"4000-8000\" (the default)",
                        default="null")
+
+argparser.add_argument("-p","--process", help="Target this process name", type=str)
+argparser.add_argument("-k","--pid", help="Target this PID", type=int)
+argparser.add_argument("--process-libs", help="Include shared libraries when targeting a process", action="store_true")
 
 args = argparser.parse_args()
 
@@ -41,18 +45,46 @@ else:
     except ValueError:
         pass
 
-blocks = devmem_util.getBlocks(include)
+processes = devmem_util.getProcs()
 commands = []
 ddtmpl = "dd if=/dev/urandom of=/dev/mem bs=512 seek={} count={} oflag=seek_bytes iflag=count_bytes"
 
-chosenblock = random.randint(0,len(blocks)-1)
-chosenstart = max(0,blocks[chosenblock].start)
-chosenend = blocks[chosenblock].end
+chosenStart = None
+chosenEnd = None
 
-chosenOffset = random.randint(chosenstart,chosenend)
+if args.process or args.pid:
+    target = None
+    if args.process:
+        targets = [proc for proc in processes if proc.name == args.process]
+        if len(targets) < 1:
+            print("No process with the name '"+args.process+"' could be found.")
+            exit(1)
+        target = random.choice(targets)
+    elif args.pid:
+        for proc in processes:
+            if proc.pid == args.pid:
+                target = proc
+        if not target:
+            print("PID "+str(args.pid)+" not found.")
+            exit(1)
+    print("Targetting "+target.name+'['+str(target.pid)+']')
+    targetMaps = target.maps
+    if not args.process_libs:
+        targetMaps = filter(lambda x: not x[2].startswith('/'), target.maps)
+
+    targetMap = random.choice(targetMaps)
+    chosenStart = targetMap[0]
+    chosenEnd = targetMap[1]
+else:
+    blocks = devmem_util.getBlocks(include)
+    chosenBlock = random.randint(0,len(blocks)-1)
+    chosenStart = max(0,blocks[chosenBlock].start)
+    chosenEnd = blocks[chosenBlock].end
+    print("Block: "+blocks[chosenBlock].name+" ("+hex(chosenStart)+'-'+hex(chosenEnd)+')')
+
+chosenOffset = random.randint(chosenStart,chosenEnd)
 chosenCount = random.randint(bytesLower,bytesUpper)
 
-processes = devmem_util.getProcs()
 hits = []
 
 for proc in processes:
@@ -61,10 +93,10 @@ for proc in processes:
            map_[0] <= chosenOffset+chosenCount:
                hits.append((proc, map_))
 
-print("Block: "+blocks[chosenblock].name+" ("+hex(chosenOffset)+'-'+hex(chosenOffset+chosenCount)+')', file=sys.stderr)
+print("Target: "+hex(chosenOffset)+'-'+hex(chosenOffset+chosenCount), file=sys.stderr)
 print("Hitting:", file=sys.stderr)
 for hit in hits:
-    print(hit[0].name+'['+hit[0].pid+']: '+hit[1][2]+" ("+hex(hit[1][0])+'-'+hex(hit[1][1])+')', file=sys.stderr)
+    print(hit[0].name+'['+str(hit[0].pid)+']: '+hit[1][2]+" ("+hex(hit[1][0])+'-'+hex(hit[1][1])+')', file=sys.stderr)
 
 command = ddtmpl.format(chosenOffset,chosenCount)
 
