@@ -1,1 +1,5 @@
 dddevmem.sh
+*.swp
+*.pyc
+*.o
+fuckdevmem
