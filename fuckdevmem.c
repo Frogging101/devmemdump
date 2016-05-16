@@ -78,10 +78,17 @@ int main(int argc, char **argv) {
         }
         Map targetMap = possibleMapsArr[randRange(0,possibleMaps.size-1)];
         uint64_t targetOffset = randRange(0, targetMap.end-targetMap.start);
+        uint64_t targetStart = targetMap.start+targetOffset;
+        if(targetStart+targetWidth > targetMap.end) {
+            printf("Target would have run out of bounds, changing width from "
+                   "%llu to %llu\n", targetWidth, targetMap.end - targetStart);
+            targetWidth = targetMap.end - targetStart;
+        }
         targetAddr = virtToPhys(targetMap.start, target.pid)+targetOffset;
-        printf("Targeting %x in %s[%d]: %s (%x-%x)\n", targetMap.start+targetOffset,
-               target.basename, target.pid, targetMap.name, targetMap.start,
-               targetMap.end);
+        printf("Targeting %x-%x (%llu bytes) in %s[%d]: %s (%x-%x)\n",
+               targetStart, targetStart+targetWidth,
+               targetWidth, target.basename, target.pid, targetMap.name, 
+               targetMap.start, targetMap.end);
         printf("Physical address: %x\n", targetAddr-targetOffset);
     } else {
         MemBlock targetBlock = blocksArr[randRange(0,blocks.size-1)];
