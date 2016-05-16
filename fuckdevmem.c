@@ -52,10 +52,15 @@ int main(int argc, char **argv) {
     uint64_t targetAddr = 0;
     if(opts.targetPID || strcmp(opts.targetProc, "") != 0) {
         Process target;
+        target.pid = 0;
         if(opts.targetPID) {
             getProcessByPID(&processes, opts.targetPID, &target);
         } else {
             getProcessByName(&processes, opts.targetProc, &target);
+        }
+        if(target.pid == 0) {
+            printf("Specified process could not be found.\n");
+            exit(1);
         }
         ArrayType possibleMaps = target.maps;
         Map *possibleMapsArr = (Map *) possibleMaps.arr;
@@ -72,7 +77,7 @@ int main(int argc, char **argv) {
             }
         }
         Map targetMap = possibleMapsArr[randRange(0,possibleMaps.size-1)];
-        uint64_t targetOffset = 0*randRange(0, targetMap.end-targetMap.start);
+        uint64_t targetOffset = randRange(0, targetMap.end-targetMap.start);
         targetAddr = virtToPhys(targetMap.start, target.pid)+targetOffset;
         printf("Targeting %x in %s[%d]: %s (%x-%x)\n", targetMap.start+targetOffset,
                target.basename, target.pid, targetMap.name, targetMap.start,
@@ -85,9 +90,12 @@ int main(int argc, char **argv) {
                targetBlock.name, targetBlock.start, targetBlock.end);
     }
 
-    char *ddtmpl = "dd if=/dev/urandom of=/dev/mem bs=512 seek=%llu count=%llu"
+    char *ddOutTemplate = "dd if=/dev/urandom of=/dev/mem bs=512 seek=%llu count=%llu"
                    " oflag=seek_bytes iflag=count_bytes\n";
-    printf(ddtmpl, targetAddr, targetWidth);
+    char *ddInTemplate = "dd if=/dev/mem bs=512 skip=%llu count=%llu"
+                         " iflag=skip_bytes,count_bytes | xxd | less\n";
+    printf(ddOutTemplate, targetAddr, targetWidth);
+    printf(ddInTemplate, targetAddr, targetWidth);
 }
 
 void initOptions(Options *opts) {
