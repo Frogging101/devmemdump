@@ -17,6 +17,7 @@
 #include "fuckdevmem.h"
 
 void initOptions(Options *opts);
+void initTargetRegions(int rows, char targetRegions[rows][MAX_STR], Options *opts);
 void parseArgs(Options *opts, int argc, char **argv);
 
 int main(int argc, char **argv) {
@@ -26,22 +27,14 @@ int main(int argc, char **argv) {
     printf("Seeding RNG with %u\n", seedTime);
     srandom(seedTime);
 
-    char include[10][MAX_STR];
-    memset(include, 0, 10*MAX_STR*sizeof(char));
-    strcpy(include[0], "System RAM");
-    strcpy(include[1], "System ROM");
+    char include[24][MAX_STR];
 
     Options opts;
     initOptions(&opts);
     parseArgs(&opts, argc, argv);
 
-    if(opts.inc_kernelStuff) {
-        strcpy(include[2], "Kernel code");
-        strcpy(include[3], "Kernel data");
-        strcpy(include[4], "Kernel bss");
-    }
-    if(opts.inc_buffers)
-        strcpy(include[5], "RAM buffer");
+    initTargetRegions(sizeof(include)/sizeof(include[0]), include, &opts);
+
 
     ArrayType blocks;
     getMemBlocks(&include[0], &blocks);
@@ -109,8 +102,35 @@ void initOptions(Options *opts) {
     opts->inc_kernelStuff = 0;
     opts->inc_buffers = 0;
     opts->targetProc[0] = '\0';
+    opts->specRegions[0] = '\0';
     opts->targetPID = 0;
     opts->targetLibs = 0;
+}
+
+void initTargetRegions(int rows, char targetRegions[rows][MAX_STR], Options *opts) {
+    memset(targetRegions, 0, rows*MAX_STR*sizeof(char));
+    if(opts->specRegions[0] == '\0') {
+        strcpy(targetRegions[0], "System RAM");
+        strcpy(targetRegions[1], "System ROM");
+    }
+
+    if(opts->inc_kernelStuff) {
+        strcpy(targetRegions[2], "Kernel code");
+        strcpy(targetRegions[3], "Kernel data");
+        strcpy(targetRegions[4], "Kernel bss");
+    }
+    if(opts->inc_buffers)
+        strcpy(targetRegions[5], "RAM buffer");
+
+    if(opts->specRegions[0] != '\0') {
+        int i = 6;
+        char *tokPtr = NULL;
+        char *specRegionsPtr = opts->specRegions;
+        while((tokPtr = strtok(specRegionsPtr, ",")) != NULL) {
+            specRegionsPtr = NULL;
+            strcpy(targetRegions[i++], tokPtr);
+        }
+    }
 }
 
 void parseArgs(Options *opts, int argc, char **argv) {
@@ -132,9 +152,15 @@ void parseArgs(Options *opts, int argc, char **argv) {
     opt_targetLibs.flag = NULL;
     opt_targetLibs.val = 'L';
 
+    struct option opt_specRegions;
+    opt_specRegions.name = "regions";
+    opt_specRegions.has_arg = required_argument;
+    opt_specRegions.flag = NULL;
+    opt_specRegions.val = 'R';
+
     const struct option longopts[5] = {opt_kernelStuff, opt_buffers, 
-                                       opt_targetLibs};
-    const char *optstring = "bKLk:p:";
+                                       opt_targetLibs, opt_specRegions};
+    const char *optstring = "bKLk:p:R:";
 
     int doneParsing = 0;
     while(!doneParsing) {
@@ -155,6 +181,8 @@ void parseArgs(Options *opts, int argc, char **argv) {
             case 'p':
                 strcpy(opts->targetProc, optarg);
                 break;
+            case 'R':
+                strcpy(opts->specRegions, optarg);
             case -1:
                 doneParsing = 1;
                 break;

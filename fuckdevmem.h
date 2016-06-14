@@ -5,6 +5,7 @@ typedef struct OptionsType {
     int inc_kernelStuff;
     int inc_buffers;
     char targetProc[MAX_STR];
+    char specRegions[128];
     int targetPID;
     int targetLibs;
 } Options;
